@@ -1,4 +1,4 @@
-import type { DeliveryPricing, DeliveryCompany } from '../types';
+import type { DeliveryCompany } from '../types';
 import { DELIVERY_COMPANIES } from '../data/seed';
 
 // Simulated delivery pricing based on wilaya zones
@@ -80,10 +80,7 @@ export async function createDeliveryOrder(orderData: {
 }
 
 // Simulated API call to track delivery
-export async function trackDelivery(
-  trackingNumber: string,
-  companyId: string
-): Promise<{
+export async function trackDelivery(trackingNumber: string, companyId: string): Promise<{
   status: string;
   history: { date: string; status: string; location: string }[];
 }> {

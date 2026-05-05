@@ -10,7 +10,7 @@ export interface Product {
   category: string;
   categoryId: string;
   sizes: string[];
-  colors: ProductColor[];
+  colors: ProductColor[];   // ✅ هنا الألوان
   inStock: boolean;
   featured: boolean;
   isNew: boolean;
@@ -132,6 +132,27 @@ export interface Coupon {
   usedCount: number;
   isActive: boolean;
   expiresAt: string;
+}
+
+export interface PixelSettings {
+  facebookPixelId: string;
+  googleAnalyticsId: string;
+  isFacebookEnabled: boolean;
+  isGoogleEnabled: boolean;
+}
+
+export interface SocialLinks {
+  facebook: string;
+  instagram: string;
+  tiktok: string;
+  whatsapp: string;
+}
+
+export interface CmsPage {
+  slug: 'about' | 'contact' | 'return-policy' | 'terms';
+  title: string;
+  content: string;
+  updatedAt: string;
 }
 
 export interface AdminStats {

@@ -1,8 +1,31 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart3, TrendingUp, Users, Eye, ShoppingCart, Globe, Smartphone, Monitor } from 'lucide-react';
+import { TrendingUp, Users, Eye, ShoppingCart, Globe, Smartphone, Monitor } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/Card';
+import { Input } from '../../components/ui/Input';
+import { Button } from '../../components/ui/Button';
+import { getPixelSettings, savePixelSettings } from '../../lib/supabaseStore';
+import type { PixelSettings } from '../../types';
 
 export function AdminAnalytics() {
+  const [settings, setSettings] = useState<PixelSettings>({
+    facebookPixelId: '',
+    googleAnalyticsId: '',
+    isFacebookEnabled: false,
+    isGoogleEnabled: false,
+  });
+
+  useEffect(() => {
+    const run = async () => {
+      const data = await getPixelSettings();
+      setSettings(data);
+    };
+    void run();
+  }, []);
+
+  const handleSave = async () => {
+    await savePixelSettings(settings);
+  };
   const trafficSources = [
     { name: 'فيسبوك', percentage: 42, color: 'bg-blue-500', icon: Globe },
     { name: 'انستغرام', percentage: 28, color: 'bg-pink-500', icon: Smartphone },
@@ -27,9 +50,6 @@ export function AdminAnalytics() {
     { event: 'Purchase', count: 95, platform: 'All' },
     { event: 'WhatsApp Click', count: 156, platform: 'GA4' },
   ];
-
-  const chartData = [30, 45, 35, 60, 50, 75, 65, 80, 55, 90, 70, 85];
-  const maxVal = Math.max(...chartData);
 
   return (
     <div className="space-y-6">
@@ -93,12 +113,12 @@ export function AdminAnalytics() {
           <CardContent>
             <h3 className="font-bold text-stone-800 mb-4" style={{ fontFamily: 'Tajawal, sans-serif' }}>قمع التحويل</h3>
             <div className="space-y-2">
-              {conversionFunnel.map((step, i) => (
+              {conversionFunnel.map((step) => (
                 <div key={step.step} className="flex items-center gap-3">
                   <span className="text-xs text-stone-400 w-20 text-left">{step.percentage}%</span>
                   <div className="flex-1">
                     <div
-                      className="h-8 bg-gradient-to-l from-[#8b1a2b] to-[#c9a84c] rounded-lg flex items-center justify-end px-3 transition-all"
+                      className="h-8 bg-linear-to-l from-[#8b1a2b] to-[#c9a84c] rounded-lg flex items-center justify-end px-3 transition-all"
                       style={{ width: `${step.percentage}%` }}
                     >
                       <span className="text-xs text-white font-semibold">{step.count.toLocaleString()}</span>
@@ -143,24 +163,79 @@ export function AdminAnalytics() {
       <Card>
         <CardContent>
           <h3 className="font-bold text-stone-800 mb-4" style={{ fontFamily: 'Tajawal, sans-serif' }}>إعدادات التتبع</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              { name: 'Facebook Pixel', status: 'مفعّل', id: 'PIXEL_ID_HERE' },
-              { name: 'TikTok Pixel', status: 'مفعّل', id: 'TTQ_ID_HERE' },
-              { name: 'Google Analytics 4', status: 'مفعّل', id: 'G-XXXXXXXXXX' },
-              { name: 'Google Tag Manager', status: 'مفعّل', id: 'GTM-XXXXXXX' },
-            ].map((tracker) => (
-              <div key={tracker.name} className="flex items-center justify-between bg-stone-50 rounded-xl p-3">
-                <div>
-                  <p className="text-sm font-semibold text-stone-800">{tracker.name}</p>
-                  <p className="text-xs text-stone-400 font-mono">{tracker.id}</p>
-                </div>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">
-                  {tracker.status}
-                </span>
-              </div>
-            ))}
+          <div className="space-y-3">
+            <div className="bg-stone-50 rounded-xl p-3">
+              <p className="text-sm font-semibold text-stone-800 mb-2">Facebook Pixel</p>
+              <Input
+                value={settings.facebookPixelId}
+                onChange={(e) => setSettings({ ...settings, facebookPixelId: e.target.value })}
+                placeholder="1234567890"
+              />
+              
+              
+              <label className="text-xs text-stone-600 mt-2 inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={settings.isFacebookEnabled}
+                  onChange={(e) => setSettings({ ...settings, isFacebookEnabled: e.target.checked })}
+                />
+                مفعّل
+              </label>
+            </div>
+            <div className="bg-stone-50 rounded-xl p-3">
+              <p className="text-sm font-semibold text-stone-800 mb-2">Instgram Pixel</p>
+              <Input
+                value={settings.facebookPixelId}
+                onChange={(e) => setSettings({ ...settings, facebookPixelId: e.target.value })}
+                placeholder="1234567890"
+              />
+              
+              
+              <label className="text-xs text-stone-600 mt-2 inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={settings.isFacebookEnabled}
+                  onChange={(e) => setSettings({ ...settings, isFacebookEnabled: e.target.checked })}
+                />
+                مفعّل
+              </label>
+            </div>
+            <div className="bg-stone-50 rounded-xl p-3">
+              <p className="text-sm font-semibold text-stone-800 mb-2">Tiktok Pixel</p>
+              <Input
+                value={settings.facebookPixelId}
+                onChange={(e) => setSettings({ ...settings, facebookPixelId: e.target.value })}
+                placeholder="1234567890"
+              />
+              
+              
+              <label className="text-xs text-stone-600 mt-2 inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={settings.isFacebookEnabled}
+                  onChange={(e) => setSettings({ ...settings, isFacebookEnabled: e.target.checked })}
+                />
+                مفعّل
+              </label>
+            </div>
+            <div className="bg-stone-50 rounded-xl p-3">
+              <p className="text-sm font-semibold text-stone-800 mb-2">Google Analytics</p>
+              <Input
+                value={settings.googleAnalyticsId}
+                onChange={(e) => setSettings({ ...settings, googleAnalyticsId: e.target.value })}
+                placeholder="G-XXXXXXXXXX"
+              />
+              <label className="text-xs text-stone-600 mt-2 inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={settings.isGoogleEnabled}
+                  onChange={(e) => setSettings({ ...settings, isGoogleEnabled: e.target.checked })}
+                />
+                مفعّل
+              </label>
+            </div>
           </div>
+          <Button className="mt-4" onClick={handleSave}>حفظ إعدادات البكسلات</Button>
         </CardContent>
       </Card>
     </div>

@@ -4,6 +4,7 @@ import { ShoppingBag, Heart } from 'lucide-react';
 import type { Product } from '../../types';
 import { formatPrice, getDiscountPercentage } from '../../lib/utils';
 import { useStore } from '../../hooks/useStore';
+import { useFavorites } from '../../hooks/useFavorites';
 import { Badge } from '../ui/Badge';
 
 interface ProductCardProps {
@@ -11,8 +12,16 @@ interface ProductCardProps {
   index?: number;
 }
 
+const PLACEHOLDER_IMAGE =
+  'data:image/svg+xml,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="533" viewBox="0 0 400 533"><rect fill="#e7e5e4" width="400" height="533"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#78716c" font-family="sans-serif" font-size="18">لا صورة</text></svg>'
+  );
+
 export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const addToCart = useStore((s) => s.addToCart);
+  const toggleFavorite = useFavorites((s) => s.toggleFavorite);
+  const isFavorite = useFavorites((s) => s.isFavorite(product.id));
 
   return (
     <motion.div
@@ -24,9 +33,9 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
         to={`/product/${product.slug}`}
         className="group block"
       >
-        <div className="relative rounded-2xl overflow-hidden bg-stone-100 aspect-[3/4] mb-3">
+        <div className="relative rounded-2xl overflow-hidden bg-stone-100 aspect-3/4 mb-3">
           <img
-            src={product.images[0]}
+            src={product.images?.[0] || PLACEHOLDER_IMAGE}
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             loading="lazy"
@@ -48,7 +57,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                addToCart(product, product.sizes[0], product.colors[0]);
+                addToCart(product, product.sizes?.[0], product.colors?.[0]);
               }}
               className="flex-1 bg-white/90 backdrop-blur-sm text-stone-900 rounded-xl py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-[#8b1a2b] hover:text-white transition-colors"
             >
@@ -59,10 +68,13 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                toggleFavorite(product.id);
               }}
-              className="w-10 bg-white/90 backdrop-blur-sm rounded-xl flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"
+              className={`w-10 bg-white/90 backdrop-blur-sm rounded-xl flex items-center justify-center transition-colors ${
+                isFavorite ? 'text-red-500 bg-red-50' : 'hover:bg-red-50 hover:text-red-500'
+              }`}
             >
-              <Heart size={16} />
+              <Heart size={16} className={isFavorite ? 'fill-red-500' : ''} />
             </button>
           </div>
         </div>

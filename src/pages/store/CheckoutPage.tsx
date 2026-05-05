@@ -1,25 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CreditCard, Truck, Building2, MapPin, Phone, User, Tag, ChevronLeft } from 'lucide-react';
+import { CreditCard, Truck, Building2, MapPin, User } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input, Select } from '../../components/ui/Input';
 import { useStore } from '../../hooks/useStore';
 import { formatPrice } from '../../lib/utils';
-import { calculateDeliveryPrice } from '../../lib/delivery';
-import { getActiveDeliveryCompanies } from '../../lib/delivery';
+import { getActiveDeliveryCompanies, getDeliveryPricing } from '../../lib/deliveryCompanies';
 import { WILAYAS } from '../../data/seed';
 import { trackEvent } from '../../lib/tracking';
-import type { CustomerInfo } from '../../types';
+import type { CustomerInfo, DeliveryCompany } from '../../types';
+import type { Coupon } from '../../types';
+import { getCoupons } from '../../lib/supabaseStore';
 
 export function CheckoutPage() {
   const navigate = useNavigate();
   const cart = useStore((s) => s.cart);
   const cartTotal = useStore((s) => s.cartTotal());
-  const couponDiscount = useStore((s) => s.couponDiscount());
-  const appliedCoupon = useStore((s) => s.appliedCoupon);
-  const applyCoupon = useStore((s) => s.applyCoupon);
-  const removeCoupon = useStore((s) => s.removeCoupon);
   const addOrder = useStore((s) => s.addOrder);
   const clearCart = useStore((s) => s.clearCart);
 
@@ -33,32 +30,124 @@ export function CheckoutPage() {
   });
 
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'baridimob'>('cod');
-  const [selectedCompany, setSelectedCompany] = useState('dc-1');
+  const [deliveryCompanies, setDeliveryCompanies] = useState<DeliveryCompany[]>([]);
+  const [selectedCompany, setSelectedCompany] = useState('');
+  const [pricing, setPricing] = useState<Record<string, { homePrice: number; officePrice: number; communePrice: number }>>({});
   const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponMessage, setCouponMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderId, setOrderId] = useState('');
 
-  const activeCompanies = getActiveDeliveryCompanies();
   const selectedWilaya = WILAYAS.find((w) => w.nameAr === customerInfo.wilaya);
   const communes = selectedWilaya?.communes || [];
 
-  const deliveryPrice = customerInfo.wilaya
-    ? calculateDeliveryPrice(customerInfo.wilaya, customerInfo.deliveryType, selectedCompany)
+  useEffect(() => {
+    const loadCompanies = async () => {
+      try {
+        const companies = await getActiveDeliveryCompanies();
+        setDeliveryCompanies(companies);
+        if (!selectedCompany && companies.length > 0) {
+          setSelectedCompany(companies[0].id);
+        }
+      } catch (error) {
+        console.error('Unable to load delivery companies:', error);
+      }
+    };
+
+    void loadCompanies();
+  }, [selectedCompany]);
+
+  useEffect(() => {
+    const loadPricing = async () => {
+      if (!selectedCompany || !selectedWilaya) return;
+      try {
+        const row = await getDeliveryPricing(selectedCompany, selectedWilaya.code);
+        if (row) {
+          setPricing((prev) => ({
+            ...prev,
+            [selectedCompany]: {
+              homePrice: row.homePrice,
+              officePrice: row.officePrice,
+              communePrice: row.communePrice,
+            },
+          }));
+        }
+      } catch (error) {
+        console.error('Unable to load delivery pricing:', error);
+      }
+    };
+
+    void loadPricing();
+  }, [selectedCompany, selectedWilaya]);
+
+  const selectedPricing = selectedCompany ? pricing[selectedCompany] : undefined;
+  const deliveryPrice = selectedPricing
+    ? selectedPricing[`${customerInfo.deliveryType}Price` as 'homePrice' | 'officePrice' | 'communePrice'] ?? 0
+    : 0;
+
+  const couponDiscount = appliedCoupon
+    ? appliedCoupon.type === 'percentage'
+      ? Math.round((cartTotal * appliedCoupon.discount) / 100)
+      : appliedCoupon.discount
     : 0;
 
   const total = cartTotal - couponDiscount + deliveryPrice;
 
-  const handleApplyCoupon = () => {
-    const result = applyCoupon(couponCode);
-    setCouponMessage(result.message);
-    if (result.success) setCouponCode('');
+  const handleApplyCoupon = async () => {
+    const coupons = await getCoupons();
+    const coupon = coupons.find((c) => c.code.toUpperCase() === couponCode.toUpperCase() && c.isActive);
+    if (!coupon) {
+      setCouponMessage('كود الخصم غير صالح');
+      return;
+    }
+    if (new Date(coupon.expiresAt) < new Date()) {
+      setCouponMessage('انتهت صلاحية هذا الكود');
+      return;
+    }
+    if (coupon.usedCount >= coupon.maxUses) {
+      setCouponMessage('تم استخدام هذا الكود الحد الأقصى من المرات');
+      return;
+    }
+    if (cartTotal < coupon.minOrder) {
+      setCouponMessage(`الحد الأدنى للطلب ${coupon.minOrder.toLocaleString('ar-DZ')} دج`);
+      return;
+    }
+    setAppliedCoupon(coupon);
+    setCouponMessage('تم تطبيق الخصم بنجاح!');
+    setCouponCode('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0) return;
+
+    // Validate customer information
+    if (!customerInfo.fullName.trim()) {
+      alert('يرجى إدخال الاسم الكامل');
+      return;
+    }
+    if (!customerInfo.phone.trim()) {
+      alert('يرجى إدخال رقم الهاتف');
+      return;
+    }
+    if (!customerInfo.wilaya) {
+      alert('يرجى اختيار الولاية');
+      return;
+    }
+    if (!customerInfo.commune) {
+      alert('يرجى اختيار البلدية');
+      return;
+    }
+    if (!customerInfo.address.trim()) {
+      alert('يرجى إدخال العنوان');
+      return;
+    }
+    if (!selectedCompany) {
+      alert('يرجى اختيار شركة التوصيل');
+      return;
+    }
 
     setIsSubmitting(true);
     trackEvent('initiate_checkout', {
@@ -67,40 +156,54 @@ export function CheckoutPage() {
       num_items: cart.length,
     });
 
-    // Simulate order creation
-    await new Promise((r) => setTimeout(r, 1500));
+    try {
+      const newOrderId = crypto.randomUUID();
+      const displayOrderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
+      const company = deliveryCompanies.find((c) => c.id === selectedCompany);
 
-    const newOrderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
-    const company = activeCompanies.find((c) => c.id === selectedCompany);
+      const orderToCreate = {
+        id: newOrderId,
+        items: cart,
+        customer: customerInfo,
+        status: 'pending' as const,
+        paymentMethod,
+        deliveryCompanyId: selectedCompany,
+        deliveryCompanyName: company?.nameAr || '',
+        deliveryPrice,
+        subtotal: cartTotal,
+        total,
+        couponCode: appliedCoupon?.code,
+        couponDiscount,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        source: 'website' as const,
+      };
 
-    addOrder({
-      id: newOrderId,
-      items: cart,
-      customer: customerInfo,
-      status: 'pending',
-      paymentMethod,
-      deliveryCompanyId: selectedCompany,
-      deliveryCompanyName: company?.nameAr || '',
-      deliveryPrice,
-      subtotal: cartTotal,
-      total,
-      couponCode: appliedCoupon?.code,
-      couponDiscount,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      source: 'website',
-    });
+      await addOrder(orderToCreate);
 
-    trackEvent('purchase', {
-      order_id: newOrderId,
-      value: total,
-      currency: 'DZD',
-    });
+      trackEvent('purchase', {
+        order_id: displayOrderId,
+        value: total,
+        currency: 'DZD',
+      });
 
-    clearCart();
-    setOrderId(newOrderId);
-    setOrderSuccess(true);
-    setIsSubmitting(false);
+      clearCart();
+      setOrderId(displayOrderId);
+      setOrderSuccess(true);
+    } catch (error) {
+      console.error('Failed to create order:', error);
+      let errorMessage = 'خطأ غير معروف';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = (error as any).message;
+      } else if (error && typeof error === 'object' && 'error' in error) {
+        errorMessage = (error as any).error;
+      }
+      alert(`حدث خطأ في إنشاء الطلب: ${errorMessage}. يرجى المحاولة مرة أخرى.`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (orderSuccess) {
@@ -229,16 +332,16 @@ export function CheckoutPage() {
               <div className="mt-4">
                 <label className="text-sm font-medium text-stone-600 mb-2 block">نوع التوصيل</label>
                 <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { value: 'home', label: 'للمنزل', icon: Truck, price: customerInfo.wilaya ? calculateDeliveryPrice(customerInfo.wilaya, 'home', selectedCompany) : 0 },
-                    { value: 'office', label: 'المكتب', icon: Building2, price: customerInfo.wilaya ? calculateDeliveryPrice(customerInfo.wilaya, 'office', selectedCompany) : 0 },
-                    { value: 'commune', label: 'البلدية', icon: MapPin, price: customerInfo.wilaya ? calculateDeliveryPrice(customerInfo.wilaya, 'commune', selectedCompany) : 0 },
-                  ].map((type) => (
+                  {([
+                    { value: 'home' as const, label: 'للمنزل', icon: Truck, price: selectedPricing?.homePrice ?? 0 },
+                    { value: 'office' as const, label: 'المكتب', icon: Building2, price: selectedPricing?.officePrice ?? 0 },
+                    { value: 'commune' as const, label: 'البلدية', icon: MapPin, price: selectedPricing?.communePrice ?? 0 },
+                  ] as const).map((type) => (
                     <button
                       key={type.value}
                       type="button"
                       onClick={() =>
-                        setCustomerInfo({ ...customerInfo, deliveryType: type.value as any })
+                        setCustomerInfo({ ...customerInfo, deliveryType: type.value })
                       }
                       className={`p-3 rounded-xl border-2 text-center transition-all ${
                         customerInfo.deliveryType === type.value
@@ -266,7 +369,7 @@ export function CheckoutPage() {
                 شركة التوصيل
               </h3>
               <div className="space-y-2">
-                {activeCompanies.map((company) => (
+                {deliveryCompanies.map((company) => (
                   <button
                     key={company.id}
                     type="button"
@@ -283,7 +386,11 @@ export function CheckoutPage() {
                     </div>
                     {customerInfo.wilaya && (
                       <span className="text-sm font-bold text-[#8b1a2b]">
-                        {formatPrice(calculateDeliveryPrice(customerInfo.wilaya, customerInfo.deliveryType, company.id))} دج
+                        {formatPrice(
+                          pricing[company.id]?.[
+                            `${customerInfo.deliveryType}Price` as 'homePrice' | 'officePrice' | 'communePrice'
+                          ] ?? 0
+                        )} دج
                       </span>
                     )}
                   </button>
@@ -340,7 +447,7 @@ export function CheckoutPage() {
                     <ul className="space-y-1 text-amber-700 text-xs">
                       <li>• CCP: 001234567890</li>
                       <li>• RIP: 00799901234567890123</li>
-                      <li>• الاسم: أناقتي للتجارة</li>
+                      <li>• الاسم: متجر ملابس للتجارة</li>
                       <li>• أرسلي لقطة الشاشة بعد التحويل عبر واتساب</li>
                     </ul>
                   </motion.div>
@@ -407,7 +514,7 @@ export function CheckoutPage() {
                     <span className="text-xs font-semibold text-emerald-700">{appliedCoupon.code}</span>
                     <button
                       type="button"
-                      onClick={() => { removeCoupon(); setCouponMessage(''); }}
+                      onClick={() => { setAppliedCoupon(null); setCouponMessage(''); }}
                       className="text-xs text-red-500 hover:underline"
                     >
                       إزالة

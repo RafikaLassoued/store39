@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ShoppingCart, DollarSign, Package, Users, TrendingUp, TrendingDown, Eye } from 'lucide-react';
+import { ShoppingCart, DollarSign, Package, Eye } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/Card';
 import { useStore } from '../../hooks/useStore';
 
@@ -29,7 +29,7 @@ export function AdminDashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: 'Tajawal, sans-serif' }}>لوحة التحكم</h1>
-        <p className="text-sm text-stone-500 mt-1">مرحباً بك في لوحة تحكم أناقتي</p>
+        <p className="text-sm text-stone-500 mt-1">مرحباً بك في لوحة تحكم متجر ملابس</p>
       </div>
 
       {/* Stats Grid */}
@@ -43,7 +43,7 @@ export function AdminDashboard() {
           >
             <Card>
               <CardContent className="flex items-center gap-4">
-                <div className={`w-12 h-12 ${stat.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                <div className={`w-12 h-12 ${stat.color} rounded-xl flex items-center justify-center shrink-0`}>
                   <stat.icon size={22} className="text-white" />
                 </div>
                 <div className="flex-1">
@@ -65,7 +65,7 @@ export function AdminDashboard() {
               {chartData.map((val, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1">
                   <div
-                    className="w-full bg-gradient-to-t from-[#8b1a2b] to-[#c9a84c] rounded-t-md transition-all duration-500"
+                    className="w-full bg-linear-to-t from-[#8b1a2b] to-[#c9a84c] rounded-t-md transition-all duration-500"
                     style={{ height: `${(val / maxChart) * 100}%` }}
                   />
                   <span className="text-[9px] text-stone-400">

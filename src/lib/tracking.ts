@@ -3,29 +3,36 @@
 // Facebook Pixel + TikTok Pixel + GA4 + GTM
 // ============================================
 
+declare global {
+  interface Window {
+    fbq?: any;
+    _fbq?: any;
+    ttq?: any;
+    TiktokAnalyticsObject?: string;
+  }
+}
+
 // ---- Facebook/Meta Pixel ----
 export function initFacebookPixel(pixelId: string): void {
   if (typeof window === 'undefined') return;
   try {
-    const w = window as any;
-    w.fbq =
-      w.fbq ||
-      function () {
-        (w.fbq.callMethod = w.fbq.callMethod || []).push(arguments);
+    window.fbq =
+      window.fbq ||
+      function (...args: unknown[]) {
+        (window.fbq!.callMethod = window.fbq!.callMethod || []).push(args);
       };
-    if (!w._fbq) w._fbq = w.fbq;
-    w.fbq('init', pixelId);
-    w.fbq('track', 'PageView');
+    if (!window._fbq) window._fbq = window.fbq;
+    window.fbq('init', pixelId);
+    window.fbq('track', 'PageView');
   } catch (e) {
     console.warn('Facebook Pixel init failed:', e);
   }
 }
 
-export function fbTrack(event: string, params?: Record<string, any>): void {
+export function fbTrack(event: string, params?: Record<string, unknown>): void {
   try {
-    const w = window as any;
-    if (w.fbq) {
-      w.fbq('track', event, params);
+    if (window.fbq) {
+      window.fbq('track', event, params);
     }
   } catch (e) {
     console.warn('Facebook Pixel track failed:', e);
@@ -36,28 +43,26 @@ export function fbTrack(event: string, params?: Record<string, any>): void {
 export function initTikTokPixel(pixelId: string): void {
   if (typeof window === 'undefined') return;
   try {
-    const w = window as any;
-    w.TiktokAnalyticsObject = 'ttq';
-    w.ttq =
-      w.ttq ||
-      function () {
-        (w.ttq.methods = w.ttq.methods || []).push(arguments);
+    window.TiktokAnalyticsObject = 'ttq';
+    window.ttq =
+      window.ttq ||
+      function (...args: unknown[]) {
+        (window.ttq!.methods = window.ttq!.methods || []).push(args);
       };
-    w.ttq.load = function (id: string) {
-      w.ttq.id = id;
+    window.ttq.load = function (id: string) {
+      window.ttq.id = id;
     };
-    w.ttq.load(pixelId);
-    w.ttq.page();
+    window.ttq.load(pixelId);
+    window.ttq.page();
   } catch (e) {
     console.warn('TikTok Pixel init failed:', e);
   }
 }
 
-export function ttqTrack(event: string, params?: Record<string, any>): void {
+export function ttqTrack(event: string, params?: Record<string, unknown>): void {
   try {
-    const w = window as any;
-    if (w.ttq) {
-      w.ttq.track(event, params);
+    if (window.ttq?.track) {
+      window.ttq.track(event, params);
     }
   } catch (e) {
     console.warn('TikTok Pixel track failed:', e);
@@ -73,10 +78,13 @@ export function initGA4(measurementId: string): void {
     script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
     document.head.appendChild(script);
 
-    const w = window as any;
+    const w = window as unknown as {
+      dataLayer?: unknown[];
+      gtag?: (...args: unknown[]) => void;
+    };
     w.dataLayer = w.dataLayer || [];
-    w.gtag = function () {
-      w.dataLayer.push(arguments);
+    w.gtag = function (...args: unknown[]) {
+      w.dataLayer!.push(args);
     };
     w.gtag('js', new Date());
     w.gtag('config', measurementId);
@@ -85,9 +93,11 @@ export function initGA4(measurementId: string): void {
   }
 }
 
-export function gtagTrack(event: string, params?: Record<string, any>): void {
+export function gtagTrack(event: string, params?: Record<string, unknown>): void {
   try {
-    const w = window as any;
+    const w = window as unknown as {
+      gtag?: (...args: unknown[]) => void;
+    };
     if (w.gtag) {
       w.gtag('event', event, params);
     }
@@ -100,7 +110,7 @@ export function gtagTrack(event: string, params?: Record<string, any>): void {
 export function initGTM(gtmId: string): void {
   if (typeof window === 'undefined') return;
   try {
-    const w = window as any;
+    const w = window as unknown as { dataLayer?: unknown[] };
     w.dataLayer = w.dataLayer || [];
     const script = document.createElement('script');
     script.innerHTML = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -126,7 +136,7 @@ export type TrackingEventType =
   | 'whatsapp_order_click'
   | 'lead';
 
-export function trackEvent(event: TrackingEventType, data?: Record<string, any>): void {
+export function trackEvent(event: TrackingEventType, data?: Record<string, unknown>): void {
   // Facebook Pixel
   const fbEventMap: Record<TrackingEventType, string> = {
     page_view: 'PageView',

@@ -4,7 +4,7 @@ import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, MessageCircle } from 'luci
 import { Button } from '../../components/ui/Button';
 import { useStore } from '../../hooks/useStore';
 import { formatPrice } from '../../lib/utils';
-import { generateWhatsAppMessage, openWhatsApp } from '../../lib/whatsapp';
+import { openWhatsApp } from '../../lib/whatsapp';
 
 export function CartPage() {
   const cart = useStore((s) => s.cart);
@@ -62,7 +62,7 @@ export function CartPage() {
                 className="flex gap-4 bg-white rounded-2xl p-4 border border-stone-100"
               >
                 {/* Image */}
-                <Link to={`/product/${item.product.slug}`} className="flex-shrink-0">
+                <Link to={`/product/${item.product.slug}`} className="shrink-0">
                   <img
                     src={item.product.images[0]}
                     alt={item.product.name}
@@ -134,7 +134,7 @@ export function CartPage() {
                   onClick={() =>
                     removeFromCart(item.product.id, item.selectedSize, item.selectedColor?.hex)
                   }
-                  className="flex-shrink-0 p-2 text-stone-400 hover:text-red-500 transition-colors"
+                  className="shrink-0 p-2 text-stone-400 hover:text-red-500 transition-colors"
                 >
                   <Trash2 size={18} />
                 </button>

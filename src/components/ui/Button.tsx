@@ -13,7 +13,7 @@ const Button = React.forwardRef<
       className={cn(
         'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none',
         {
-          'bg-gradient-to-l from-[#8b1a2b] to-[#a0253a] text-white hover:from-[#7a1525] hover:to-[#8f1f33] shadow-lg shadow-[#8b1a2b]/20 focus:ring-[#8b1a2b]/50':
+          'bg-linear-to-l from-[#8b1a2b] to-[#a0253a] text-white hover:from-[#7a1525] hover:to-[#8f1f33] shadow-lg shadow-[#8b1a2b]/20 focus:ring-[#8b1a2b]/50':
             variant === 'default',
           'border-2 border-[#8b1a2b]/20 text-[#8b1a2b] hover:bg-[#8b1a2b]/5 focus:ring-[#8b1a2b]/50':
             variant === 'outline',

@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, Edit3 } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 import { useStore } from '../../hooks/useStore';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../../types';
 import type { OrderStatus } from '../../types';
@@ -11,12 +11,24 @@ const ALL_STATUSES: OrderStatus[] = ['pending', 'in_warehouse', 'in_delivery', '
 
 export function AdminOrders() {
   const orders = useStore((s) => s.orders);
+  const loadOrders = useStore((s) => s.loadOrders);
   const updateOrderStatus = useStore((s) => s.updateOrderStatus);
+  const error = useStore((s) => s.error);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [query, setQuery] = useState('');
 
-  const filtered = filterStatus === 'all'
+  const byStatus = filterStatus === 'all'
     ? orders
     : orders.filter((o) => o.status === filterStatus);
+  useEffect(() => {
+    void loadOrders();
+  }, [loadOrders]);
+
+  const filtered = byStatus.filter((o) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return o.id.toLowerCase().includes(q) || o.customer.fullName.toLowerCase().includes(q);
+  });
 
   return (
     <div className="space-y-6">
@@ -27,11 +39,27 @@ export function AdminOrders() {
         </div>
       </div>
 
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">{error}</p>
+        </div>
+      )}
+
+      <div className="relative">
+        <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="ابحث باسم العميل أو Order ID"
+          className="pr-9"
+        />
+      </div>
+
       {/* Status Filter */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         <button
           onClick={() => setFilterStatus('all')}
-          className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${
+          className={`shrink-0 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${
             filterStatus === 'all' ? 'bg-[#8b1a2b] text-white' : 'bg-white text-stone-600 border border-stone-200'
           }`}
         >
@@ -41,7 +69,7 @@ export function AdminOrders() {
           <button
             key={status}
             onClick={() => setFilterStatus(status)}
-            className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${
+            className={`shrink-0 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${
               filterStatus === status ? 'bg-[#8b1a2b] text-white' : 'bg-white text-stone-600 border border-stone-200'
             }`}
           >

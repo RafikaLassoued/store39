@@ -1,21 +1,29 @@
 import { useState } from 'react';
-import { Link, useLocation, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Package, Tags, Truck, ShoppingCart, Users, Ticket, BarChart3, ArrowRight, Settings } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Package, Tags, Truck, ShoppingCart, Ticket, BarChart3, ArrowRight, Settings, LogOut } from 'lucide-react';
+import { useAdminAuth } from '../../hooks/useAdminAuth';
 
-const adminNav = [
-  { to: '/admin', label: 'لوحة التحكم', icon: LayoutDashboard, end: true },
-  { to: '/admin/products', label: 'المنتجات', icon: Package },
-  { to: '/admin/categories', label: 'التصنيفات', icon: Tags },
-  { to: '/admin/orders', label: 'الطلبات', icon: ShoppingCart },
-  { to: '/admin/delivery', label: 'شركات التوصيل', icon: Truck },
-  { to: '/admin/coupons', label: 'كوبونات الخصم', icon: Ticket },
-  { to: '/admin/analytics', label: 'الإحصائيات', icon: BarChart3 },
-];
+interface AdminLayoutProps {
+  basePath: string;
+}
 
-export function AdminLayout() {
+export function AdminLayout({ basePath }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const signOut = useAdminAuth((s) => s.signOut);
+
+  const adminNav = [
+    { to: `${basePath}`, label: 'لوحة التحكم', icon: LayoutDashboard, end: true },
+    { to: `${basePath}/products`, label: 'المنتجات', icon: Package },
+    { to: `${basePath}/categories`, label: 'التصنيفات', icon: Tags },
+    { to: `${basePath}/orders`, label: 'الطلبات', icon: ShoppingCart },
+    { to: `${basePath}/delivery`, label: 'شركات التوصيل', icon: Truck },
+    { to: `${basePath}/coupons`, label: 'كوبونات الخصم', icon: Ticket },
+    { to: `${basePath}/analytics`, label: 'الإحصائيات', icon: BarChart3 },
+    { to: `${basePath}/settings`, label: 'الإعدادات', icon: Settings },
+  ];
 
   const isActive = (path: string, end = false) => {
     if (end) return location.pathname === path;
@@ -39,12 +47,12 @@ export function AdminLayout() {
         }`}
       >
         <div className="p-5 border-b border-stone-800">
-          <Link to="/admin" className="flex items-center gap-2" onClick={() => setSidebarOpen(false)}>
-            <div className="w-9 h-9 bg-gradient-to-bl from-[#8b1a2b] to-[#c9a84c] rounded-xl flex items-center justify-center">
+          <Link to={basePath} className="flex items-center gap-2" onClick={() => setSidebarOpen(false)}>
+            <div className="w-9 h-9 bg-linear-to-bl from-[#8b1a2b] to-[#c9a84c] rounded-xl flex items-center justify-center">
               <span className="text-white font-bold text-lg">أ</span>
             </div>
             <div>
-              <span className="font-bold text-lg" style={{ fontFamily: 'Tajawal, sans-serif' }}>أناقتي</span>
+              <span className="font-bold text-lg" style={{ fontFamily: 'Tajawal, sans-serif' }}>متجر ملابس</span>
               <span className="text-[10px] text-stone-400 block">لوحة التحكم</span>
             </div>
           </Link>
@@ -68,7 +76,7 @@ export function AdminLayout() {
           ))}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-stone-800">
+        <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-stone-800 space-y-1">
           <Link
             to="/"
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
@@ -76,6 +84,23 @@ export function AdminLayout() {
             <ArrowRight size={18} />
             العودة للمتجر
           </Link>
+          <button
+            onClick={async () => {
+              setIsLoggingOut(true);
+              try {
+                await signOut();
+                navigate('/admin/login');
+              } catch (error) {
+                console.error('خطأ في تسجيل الخروج:', error);
+                setIsLoggingOut(false);
+              }
+            }}
+            disabled={isLoggingOut}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/30 transition-colors disabled:opacity-50"
+          >
+            <LogOut size={18} />
+            {isLoggingOut ? 'جاري تسجيل الخروج...' : 'تسجيل الخروج'}
+          </button>
         </div>
       </aside>
 
@@ -93,6 +118,23 @@ export function AdminLayout() {
           </button>
           <h2 className="text-sm font-semibold text-stone-800">لوحة التحكم</h2>
           <div className="flex items-center gap-3">
+            <button
+              onClick={async () => {
+                setIsLoggingOut(true);
+                try {
+                  await signOut();
+                  navigate('/admin/login');
+                } catch (error) {
+                  console.error('خطأ في تسجيل الخروج:', error);
+                  setIsLoggingOut(false);
+                }
+              }}
+              disabled={isLoggingOut}
+              className="p-2 text-stone-600 hover:text-red-600 transition-colors hidden sm:block disabled:opacity-50"
+              title="تسجيل الخروج"
+            >
+              <LogOut size={20} />
+            </button>
             <div className="w-8 h-8 bg-[#8b1a2b] rounded-full flex items-center justify-center text-white text-xs font-bold">
               م
             </div>

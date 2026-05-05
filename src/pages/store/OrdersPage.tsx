@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Package, Search, MapPin, Truck, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Package, Truck, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useStore } from '../../hooks/useStore';
@@ -60,7 +60,7 @@ export function OrdersPage() {
             <div className="space-y-4">
               {trackingResult.history.map((item, i) => (
                 <div key={i} className="flex gap-4 items-start">
-                  <div className="w-3 h-3 rounded-full bg-[#8b1a2b] mt-1 flex-shrink-0" />
+                    <div className="w-3 h-3 rounded-full bg-[#8b1a2b] mt-1 shrink-0" />
                   <div>
                     <p className="text-sm font-semibold text-stone-800">{item.status}</p>
                     <p className="text-xs text-stone-500">{item.location} • {item.date}</p>

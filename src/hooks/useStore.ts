@@ -1,11 +1,18 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { CartItem, Product, ProductColor, Order, Coupon } from '../types';
-import { PRODUCTS, SAMPLE_ORDERS, COUPONS } from '../data/seed';
+import type { CartItem, Product, ProductColor, Order, Coupon, Category } from '../types';
 import { trackEvent } from '../lib/tracking';
+import * as productsApi from '../lib/products';
+import * as categoriesApi from '../lib/categories';
+import * as ordersApi from '../lib/orders';
+import * as storeApi from '../lib/supabaseStore';
 
 interface StoreState {
-  // Cart
+  // ========== LOADING STATES ==========
+  isLoading: boolean;
+  error: string | null;
+
+  // ========== CART ==========
   cart: CartItem[];
   addToCart: (product: Product, size?: string, color?: ProductColor, quantity?: number) => void;
   removeFromCart: (productId: string, size?: string, color?: string) => void;
@@ -14,33 +21,45 @@ interface StoreState {
   cartTotal: () => number;
   cartCount: () => number;
 
-  // Orders
+  // ========== ORDERS ==========
   orders: Order[];
-  addOrder: (order: Order) => void;
-  updateOrderStatus: (orderId: string, status: Order['status']) => void;
+  addOrder: (order: Order) => Promise<void>;
+  updateOrderStatus: (orderId: string, status: Order['status']) => Promise<void>;
+  loadOrders: () => Promise<void>;
 
-  // Coupon
+  // ========== COUPON ==========
   appliedCoupon: Coupon | null;
   applyCoupon: (code: string) => { success: boolean; message: string };
   removeCoupon: () => void;
   couponDiscount: () => number;
 
-  // Admin - Products
+  // ========== PRODUCTS ==========
   products: Product[];
-  addProduct: (product: Product) => void;
-  updateProduct: (id: string, product: Partial<Product>) => void;
-  deleteProduct: (id: string) => void;
+  addProduct: (product: Product) => Promise<void>;
+  updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  loadProducts: () => Promise<void>;
 
-  // Admin - Coupons
+  // ========== COUPONS ==========
   coupons: Coupon[];
-  addCoupon: (coupon: Coupon) => void;
-  toggleCoupon: (id: string) => void;
+  addCoupon: (coupon: Coupon) => Promise<void>;
+  toggleCoupon: (id: string) => Promise<void>;
+  loadCoupons: () => Promise<void>;
+
+  // ========== CATEGORIES ==========
+  categories: Category[];
+  setCategories: (cats: Category[]) => void;
+  loadCategories: () => Promise<void>;
 }
 
 export const useStore = create<StoreState>()(
   persist(
     (set, get) => ({
-      // ---- Cart ----
+      // ========== STATES ==========
+      isLoading: false,
+      error: null,
+
+      // ========== CART ==========
       cart: [],
 
       addToCart: (product, size, color, quantity = 1) => {
@@ -62,7 +81,12 @@ export const useStore = create<StoreState>()(
             ),
           });
         } else {
-          set({ cart: [...get().cart, { product, quantity, selectedSize: size, selectedColor: color }] });
+          set({
+            cart: [
+              ...get().cart,
+              { product, quantity, selectedSize: size, selectedColor: color },
+            ],
+          });
         }
 
         trackEvent('add_to_cart', {
@@ -77,9 +101,14 @@ export const useStore = create<StoreState>()(
         set({
           cart: get().cart.filter(
             (item) =>
-              !(item.product.id === productId && item.selectedSize === size && item.selectedColor?.hex === color)
+              !(
+                item.product.id === productId &&
+                item.selectedSize === size &&
+                item.selectedColor?.hex === color
+              )
           ),
         });
+
         trackEvent('remove_from_cart', { content_id: productId });
       },
 
@@ -88,9 +117,12 @@ export const useStore = create<StoreState>()(
           get().removeFromCart(productId, size, color);
           return;
         }
+
         set({
           cart: get().cart.map((item) =>
-            item.product.id === productId && item.selectedSize === size && item.selectedColor?.hex === color
+            item.product.id === productId &&
+            item.selectedSize === size &&
+            item.selectedColor?.hex === color
               ? { ...item, quantity }
               : item
           ),
@@ -99,52 +131,110 @@ export const useStore = create<StoreState>()(
 
       clearCart: () => set({ cart: [], appliedCoupon: null }),
 
-      cartTotal: () => get().cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0),
+      cartTotal: () =>
+        get().cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0),
 
-      cartCount: () => get().cart.reduce((sum, item) => sum + item.quantity, 0),
+      cartCount: () =>
+        get().cart.reduce((sum, item) => sum + item.quantity, 0),
 
-      // ---- Orders ----
-      orders: SAMPLE_ORDERS,
+      // ========== ORDERS ==========
+      orders: [],
 
-      addOrder: (order) => {
-        set({ orders: [order, ...get().orders] });
-        trackEvent('order_created', {
-          order_id: order.id,
-          value: order.total,
-          currency: 'DZD',
-        });
+      addOrder: async (order) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          await ordersApi.createOrder(order);
+
+          set({
+            orders: [
+              {
+                ...order,
+                createdAt: order.createdAt || new Date().toISOString(),
+                updatedAt: order.updatedAt || new Date().toISOString(),
+              },
+              ...get().orders,
+            ],
+          });
+
+          trackEvent('order_created', {
+            order_id: order.id,
+            value: order.total,
+            currency: 'DZD',
+          });
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'خطأ في إنشاء الطلب',
+          });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
       },
 
-      updateOrderStatus: (orderId, status) => {
-        set({
-          orders: get().orders.map((order) =>
-            order.id === orderId ? { ...order, status, updatedAt: new Date().toISOString() } : order
-          ),
-        });
+      updateOrderStatus: async (orderId, status) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          await ordersApi.updateOrderStatus(orderId, status);
+
+          set({
+            orders: get().orders.map((order) =>
+              order.id === orderId
+                ? {
+                    ...order,
+                    status,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : order
+            ),
+          });
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'خطأ في تحديث الطلب',
+          });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
       },
 
-      // ---- Coupon ----
+      loadOrders: async () => {
+        try {
+          set({ isLoading: true, error: null });
+
+          const orders = await ordersApi.getOrders();
+
+          set({
+            orders: (orders || []).map((o: any) => ({
+              ...o,
+              createdAt: o.createdAt || o.created_at || new Date().toISOString(),
+              updatedAt: o.updatedAt || o.updated_at,
+            })),
+          });
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'خطأ في تحميل الطلبات',
+          });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      // ========== COUPON ==========
       appliedCoupon: null,
 
       applyCoupon: (code) => {
         const coupon = get().coupons.find(
-          (c) => c.code.toUpperCase() === code.toUpperCase() && c.isActive
+          (c) =>
+            c.code.toUpperCase() === code.toUpperCase() && c.isActive
         );
-        if (!coupon) {
-          return { success: false, message: 'كود الخصم غير صالح' };
-        }
-        if (coupon.usedCount >= coupon.maxUses) {
-          return { success: false, message: 'تم استخدام هذا الكود الحد الأقصى من المرات' };
-        }
-        if (new Date(coupon.expiresAt) < new Date()) {
-          return { success: false, message: 'انتهت صلاحية هذا الكود' };
-        }
-        const total = get().cartTotal();
-        if (total < coupon.minOrder) {
-          return { success: false, message: `الحد الأدنى للطلب ${coupon.minOrder.toLocaleString('ar-DZ')} دج` };
-        }
+
+        if (!coupon) return { success: false, message: 'كود غير صالح' };
+
         set({ appliedCoupon: coupon });
-        return { success: true, message: 'تم تطبيق الخصم بنجاح!' };
+
+        return { success: true, message: 'تم التطبيق' };
       },
 
       removeCoupon: () => set({ appliedCoupon: null }),
@@ -152,37 +242,94 @@ export const useStore = create<StoreState>()(
       couponDiscount: () => {
         const coupon = get().appliedCoupon;
         if (!coupon) return 0;
+
         const total = get().cartTotal();
-        if (coupon.type === 'percentage') {
-          return Math.round((total * coupon.discount) / 100);
-        }
-        return coupon.discount;
+
+        return coupon.type === 'percentage'
+          ? Math.round((total * coupon.discount) / 100)
+          : coupon.discount;
       },
 
-      // ---- Admin Products ----
-      products: PRODUCTS,
+      // ========== PRODUCTS ==========
+      products: [],
 
-      addProduct: (product) => set({ products: [product, ...get().products] }),
+      addProduct: async (product) => {
+        try {
+          set({ isLoading: true, error: null });
 
-      updateProduct: (id, updates) =>
+          const id = await productsApi.createProduct(product);
+
+          set({
+            products: [{ ...product, id }, ...get().products],
+          });
+        } catch (error) {
+          set({ error: 'خطأ في إضافة المنتج' });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      updateProduct: async (id, updates) => {
+        await productsApi.updateProduct(id, updates);
+
         set({
-          products: get().products.map((p) => (p.id === id ? { ...p, ...updates } : p)),
-        }),
+          products: get().products.map((p) =>
+            p.id === id ? { ...p, ...updates } : p
+          ),
+        });
+      },
 
-      deleteProduct: (id) =>
-        set({ products: get().products.filter((p) => p.id !== id) }),
+      deleteProduct: async (id) => {
+        await productsApi.deleteProduct(id);
 
-      // ---- Admin Coupons ----
-      coupons: COUPONS,
+        set({
+          products: get().products.filter((p) => p.id !== id),
+        });
+      },
 
-      addCoupon: (coupon) => set({ coupons: [coupon, ...get().coupons] }),
+      loadProducts: async () => {
+        const products = await productsApi.getProducts();
+        set({ products });
+      },
 
-      toggleCoupon: (id) =>
+      // ========== COUPONS ==========
+      coupons: [],
+
+      addCoupon: async (coupon) => {
+        const id = await storeApi.createCoupon(coupon);
+
+        set({
+          coupons: [{ ...coupon, id }, ...get().coupons],
+        });
+      },
+
+      toggleCoupon: async (id) => {
+        const coupon = get().coupons.find((c) => c.id === id);
+        if (!coupon) return;
+
+        await storeApi.toggleCoupon(id, !coupon.isActive);
+
         set({
           coupons: get().coupons.map((c) =>
             c.id === id ? { ...c, isActive: !c.isActive } : c
           ),
-        }),
+        });
+      },
+
+      loadCoupons: async () => {
+        const coupons = await storeApi.getCoupons();
+        set({ coupons });
+      },
+
+      // ========== CATEGORIES ==========
+      categories: [],
+
+      setCategories: (cats) => set({ categories: cats }),
+
+      loadCategories: async () => {
+        const categories = await categoriesApi.getCategories();
+        set({ categories });
+      },
     }),
     {
       name: 'anaqati-store',
@@ -191,6 +338,7 @@ export const useStore = create<StoreState>()(
         orders: state.orders,
         products: state.products,
         coupons: state.coupons,
+        categories: state.categories,
       }),
     }
   )

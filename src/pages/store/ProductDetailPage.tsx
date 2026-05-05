@@ -12,12 +12,15 @@ import type { ProductColor } from '../../types';
 import { generateWhatsAppMessage, openWhatsApp } from '../../lib/whatsapp';
 import { trackEvent } from '../../lib/tracking';
 import { updateMetaTags, generateProductSchema } from '../../lib/seo';
+import { useFavorites } from '../../hooks/useFavorites';
 
 export function ProductDetailPage() {
   const { slug } = useParams();
   const products = useStore((s) => s.products);
   const addToCart = useStore((s) => s.addToCart);
   const product = products.find((p) => p.slug === slug);
+  const toggleFavorite = useFavorites((s) => s.toggleFavorite);
+  const isFavorite = useFavorites((s) => s.isFavorite(product?.id ?? ''));
 
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<ProductColor | null>(null);
@@ -25,24 +28,21 @@ export function ProductDetailPage() {
   const [addedToCart, setAddedToCart] = useState(false);
 
   useEffect(() => {
-    if (product) {
-      setSelectedSize(product.sizes[0] || '');
-      setSelectedColor(product.colors[0] || null);
+    if (!product) return;
 
-      trackEvent('view_content', {
-        content_name: product.name,
-        content_id: product.id,
-        value: product.price,
-        currency: 'DZD',
-      });
+    trackEvent('view_content', {
+      content_name: product.name,
+      content_id: product.id,
+      value: product.price,
+      currency: 'DZD',
+    });
 
-      updateMetaTags({
-        title: `${product.name} | أناقتي`,
-        description: product.description,
-        image: product.images[0],
-        type: 'product',
-      });
-    }
+    updateMetaTags({
+      title: `${product.name} | متجر ملابس`,
+      description: product.description,
+      image: product.images[0],
+      type: 'product',
+    });
   }, [product]);
 
   if (!product) {
@@ -73,6 +73,15 @@ export function ProductDetailPage() {
     });
   };
 
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      await navigator.share({ title: product.name, text: product.description, url });
+      return;
+    }
+    await navigator.clipboard.writeText(url);
+  };
+
   const relatedProducts = products
     .filter((p) => p.categoryId === product.categoryId && p.id !== product.id)
     .slice(0, 4);
@@ -94,7 +103,13 @@ export function ProductDetailPage() {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
         >
-          <ImageGallery images={product.images} name={product.name} />
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-stone-800">الصور</h2>
+              <span className="text-sm text-stone-500">{product.images.length} صورة</span>
+            </div>
+            <ImageGallery images={product.images} name={product.name} />
+          </div>
         </motion.div>
 
         {/* Product Info */}
@@ -156,7 +171,7 @@ export function ProductDetailPage() {
                   <button
                     key={size}
                     onClick={() => setSelectedSize(size)}
-                    className={`min-w-[44px] h-11 px-3 rounded-xl border-2 text-sm font-semibold transition-all ${
+                    className={`min-w-11 h-11 px-3 rounded-xl border-2 text-sm font-semibold transition-all ${
                       selectedSize === size
                         ? 'border-[#8b1a2b] bg-[#8b1a2b]/5 text-[#8b1a2b]'
                         : 'border-stone-200 text-stone-600 hover:border-stone-300'
@@ -241,11 +256,11 @@ export function ProductDetailPage() {
             </Button>
 
             <div className="flex gap-3">
-              <Button variant="outline" size="md" className="flex-1">
-                <Heart size={16} />
-                المفضلة
+              <Button variant="outline" size="md" className="flex-1" onClick={() => toggleFavorite(product.id)}>
+                <Heart size={16} className={isFavorite ? 'fill-red-500 text-red-500' : ''} />
+                {isFavorite ? 'تمت الإضافة' : 'المفضلة'}
               </Button>
-              <Button variant="outline" size="md" className="flex-1">
+              <Button variant="outline" size="md" className="flex-1" onClick={() => void handleShare()}>
                 <Share2 size={16} />
                 مشاركة
               </Button>
@@ -272,19 +287,7 @@ export function ProductDetailPage() {
         dangerouslySetInnerHTML={{ __html: generateProductSchema(product) }}
       />
 
-      {/* Related Products */}
-      {relatedProducts.length > 0 && (
-        <section className="mt-16">
-          <h2 className="text-2xl font-bold text-stone-900 mb-6" style={{ fontFamily: 'Tajawal, sans-serif' }}>
-            منتجات مشابهة
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {relatedProducts.map((p, i) => (
-              <ProductCard key={p.id} product={p} index={i} />
-            ))}
-          </div>
-        </section>
-      )}
+     
     </div>
   );
 }

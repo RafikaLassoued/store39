@@ -1,24 +1,20 @@
 import { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { SlidersHorizontal, Grid3X3, LayoutList } from 'lucide-react';
 import { ProductCard } from '../../components/product/ProductCard';
 import { useStore } from '../../hooks/useStore';
-import { CATEGORIES } from '../../data/seed';
 
 export function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const products = useStore((s) => s.products);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('newest');
-  const [showFilters, setShowFilters] = useState(false);
 
+  const categories = useStore((s) => s.categories);
   const activeCategory = searchParams.get('category') || '';
 
   const filteredProducts = useMemo(() => {
     let filtered = products;
     if (activeCategory) {
-      const cat = CATEGORIES.find((c) => c.slug === activeCategory);
+      const cat = categories.find((c) => c.slug === activeCategory);
       if (cat) {
         filtered = filtered.filter((p) => p.categoryId === cat.id);
       }
@@ -34,7 +30,7 @@ export function ProductsPage() {
       default:
         return filtered;
     }
-  }, [products, activeCategory, sortBy]);
+  }, [products, categories, activeCategory, sortBy]);
 
   const setCategory = (slug: string) => {
     if (slug) {
@@ -50,7 +46,7 @@ export function ProductsPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-stone-900" style={{ fontFamily: 'Tajawal, sans-serif' }}>
           {activeCategory
-            ? CATEGORIES.find((c) => c.slug === activeCategory)?.name || 'المنتجات'
+            ? categories.find((c) => c.slug === activeCategory)?.name || 'المنتجات'
             : 'جميع المنتجات'}
         </h1>
         <p className="text-sm text-stone-500 mt-1">
@@ -64,7 +60,7 @@ export function ProductsPage() {
         <div className="flex items-center gap-2 overflow-x-auto pb-2 flex-1">
           <button
             onClick={() => setCategory('')}
-            className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+            className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
               !activeCategory
                 ? 'bg-[#8b1a2b] text-white'
                 : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
@@ -72,11 +68,11 @@ export function ProductsPage() {
           >
             الكل
           </button>
-          {CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setCategory(cat.slug)}
-              className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+              className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                 activeCategory === cat.slug
                   ? 'bg-[#8b1a2b] text-white'
                   : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
@@ -88,7 +84,7 @@ export function ProductsPage() {
         </div>
 
         {/* Sort & View */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}

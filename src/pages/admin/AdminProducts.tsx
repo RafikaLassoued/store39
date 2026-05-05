@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { Plus, Pencil, Trash2, Search, Eye } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -10,6 +9,10 @@ import { useStore } from '../../hooks/useStore';
 import { formatPrice } from '../../lib/utils';
 
 export function AdminProducts() {
+
+  const { pathname } = useLocation();
+  const adminPath = pathname.split('/').slice(0, 2).join('/');
+
   const products = useStore((s) => s.products);
   const deleteProduct = useStore((s) => s.deleteProduct);
   const [search, setSearch] = useState('');
@@ -21,14 +24,20 @@ export function AdminProducts() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
+        
         <div>
-          <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: 'Tajawal, sans-serif' }}>المنتجات</h1>
+          <h1 className="text-2xl font-bold text-stone-900" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+            المنتجات
+          </h1>
           <p className="text-sm text-stone-500 mt-1">{products.length} منتج</p>
         </div>
-        <Button size="sm">
-          <Plus size={16} />
-          إضافة منتج
-        </Button>
+
+        <Link to={`${adminPath}/addproduct`}>
+          <Button size="sm" className="flex items-center gap-1">
+            <Plus size={16} />
+            إضافة منتج
+          </Button>
+        </Link>
       </div>
 
       {/* Search */}
@@ -56,6 +65,7 @@ export function AdminProducts() {
                   <th className="text-right py-3 px-4 text-stone-500 font-medium">الإجراءات</th>
                 </tr>
               </thead>
+
               <tbody>
                 {filtered.map((product) => (
                   <tr key={product.id} className="border-b border-stone-50 hover:bg-stone-50/50">
@@ -72,15 +82,20 @@ export function AdminProducts() {
                         </div>
                       </div>
                     </td>
+
                     <td className="py-3 px-4 text-stone-600">{product.category}</td>
+
                     <td className="py-3 px-4">
                       <div>
                         <span className="font-semibold text-stone-800">{formatPrice(product.price)} دج</span>
                         {product.oldPrice && (
-                          <span className="text-xs text-stone-400 line-through block">{formatPrice(product.oldPrice)} دج</span>
+                          <span className="text-xs text-stone-400 line-through block">
+                            {formatPrice(product.oldPrice)} دج
+                          </span>
                         )}
                       </div>
                     </td>
+
                     <td className="py-3 px-4">
                       <div className="flex gap-1">
                         {product.inStock && <Badge variant="success">متوفر</Badge>}
@@ -88,6 +103,7 @@ export function AdminProducts() {
                         {product.featured && <Badge>مميز</Badge>}
                       </div>
                     </td>
+
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-1">
                         <Link to={`/product/${product.slug}`}>
@@ -95,9 +111,12 @@ export function AdminProducts() {
                             <Eye size={16} />
                           </button>
                         </Link>
-                        <button className="p-1.5 text-stone-400 hover:text-amber-500 transition-colors">
-                          <Pencil size={16} />
-                        </button>
+<Link to={`${adminPath}/addproduct?id=${product.id}`}>
+  <button className="p-1.5 text-stone-400 hover:text-amber-500 transition-colors">
+    <Pencil size={16} />
+  </button>
+</Link>
+
                         <button
                           onClick={() => deleteProduct(product.id)}
                           className="p-1.5 text-stone-400 hover:text-red-500 transition-colors"
@@ -106,13 +125,16 @@ export function AdminProducts() {
                         </button>
                       </div>
                     </td>
+
                   </tr>
                 ))}
               </tbody>
+
             </table>
           </div>
         </CardContent>
       </Card>
+
     </div>
   );
 }

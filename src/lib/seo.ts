@@ -1,6 +1,6 @@
 // SEO utilities
 
-export function generateStructuredData(type: string, data: Record<string, any>): string {
+export function generateStructuredData(type: string, data: Record<string, unknown>): string {
   const baseSchema = {
     '@context': 'https://schema.org',
     '@type': type,
@@ -40,7 +40,7 @@ export function generateProductSchema(product: {
 
 export function generateStoreSchema(): string {
   return generateStructuredData('Store', {
-    name: 'أناقتي',
+    name: 'متجر ملابس',
     description: 'متجر إلكتروني جزائري للأزياء والموضة',
     url: window.location.origin,
     priceRange: '$$',

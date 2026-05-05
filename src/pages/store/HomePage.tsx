@@ -1,14 +1,34 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import { ArrowRight, Truck, Shield, CreditCard, Star, Sparkles } from 'lucide-react';
 import { ProductCard } from '../../components/product/ProductCard';
 import { useStore } from '../../hooks/useStore';
-import { CATEGORIES } from '../../data/seed';
+import { getActiveCoupon } from '../../lib/supabaseStore';
+import { formatPrice } from '../../lib/utils';
+import type { Coupon } from '../../types';
 
 export function HomePage() {
   const products = useStore((s) => s.products);
+  const categories = useStore((s) => s.categories);
   const featuredProducts = products.filter((p) => p.featured);
   const newProducts = products.filter((p) => p.isNew);
+
+  const [coupon, setCoupon] = useState<Coupon | null>(null);
+
+  // Fetch active coupon
+  useEffect(() => {
+    const loadCoupon = async () => {
+      try {
+        const coupon = await getActiveCoupon();
+        setCoupon(coupon);
+      } catch (error) {
+        console.error('Failed to load active coupon', error);
+      }
+    };
+
+    void loadCoupon();
+  }, []);
 
   return (
     <div>
@@ -21,7 +41,7 @@ export function HomePage() {
             alt="Hero"
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-l from-black/70 via-black/50 to-black/30" />
+          <div className="absolute inset-0 bg-linear-to-l from-black/70 via-black/50 to-black/30" />
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-20">
@@ -30,10 +50,12 @@ export function HomePage() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
+              className="flex items-center gap-4 mb-6"
             >
-              <span className="inline-flex items-center gap-1.5 bg-[#c9a84c]/20 text-[#c9a84c] px-4 py-1.5 rounded-full text-sm font-semibold mb-6 backdrop-blur-sm">
+              <img src="/logo.png" alt="شعار متجر ملابس" className="w-16 h-16 rounded-2xl shadow-lg bg-white" />
+              <span className="inline-flex items-center gap-1.5 bg-[#c9a84c]/20 text-[#c9a84c] px-4 py-1.5 rounded-full text-sm font-semibold backdrop-blur-sm">
                 <Sparkles size={14} />
-                مجموعة الخريف الجديدة
+          دائما لدينا مجموعات جديدة ومميزة
               </span>
             </motion.div>
 
@@ -46,7 +68,7 @@ export function HomePage() {
             >
               اكتشفي أناقتك
               <br />
-              <span className="text-[#c9a84c]">مع أناقتي</span>
+              <span className="text-[#c9a84c]">مع متجر ملابس</span>
             </motion.h1>
 
             <motion.p
@@ -95,7 +117,7 @@ export function HomePage() {
               { icon: Star, title: 'أفضل الأسعار', desc: 'عروض حصرية' },
             ].map((feature, i) => (
               <div key={i} className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#8b1a2b]/5 flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-[#8b1a2b]/5 flex items-center justify-center shrink-0">
                   <feature.icon size={18} className="text-[#8b1a2b]" />
                 </div>
                 <div>
@@ -121,7 +143,7 @@ export function HomePage() {
         </div>
 
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-          {CATEGORIES.map((cat, i) => (
+          {categories.map((cat, i) => (
             <motion.div
               key={cat.id}
               initial={{ opacity: 0, scale: 0.9 }}
@@ -150,37 +172,25 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Featured Products */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-bold text-stone-900" style={{ fontFamily: 'Tajawal, sans-serif' }}>المنتجات المميزة</h2>
-            <p className="text-sm text-stone-500 mt-1">اختيارات مميزة لكِ</p>
-          </div>
-          <Link to="/products" className="text-sm font-semibold text-[#8b1a2b] hover:underline flex items-center gap-1">
-            عرض الكل <ArrowRight size={14} />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {featuredProducts.map((product, i) => (
-            <ProductCard key={product.id} product={product} index={i} />
-          ))}
-        </div>
-      </section>
-
       {/* Banner */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <div className="relative rounded-3xl overflow-hidden bg-gradient-to-l from-[#8b1a2b] to-[#4a0d15] p-8 sm:p-12">
+        <div className="relative rounded-3xl overflow-hidden bg-linear-to-l from-[#8b1a2b] to-[#4a0d15] p-8 sm:p-12">
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-0 left-0 w-64 h-64 bg-[#c9a84c] rounded-full -translate-x-1/2 -translate-y-1/2" />
             <div className="absolute bottom-0 right-0 w-48 h-48 bg-[#c9a84c] rounded-full translate-x-1/3 translate-y-1/3" />
           </div>
           <div className="relative text-center">
             <h3 className="text-3xl sm:text-4xl font-bold text-white mb-3" style={{ fontFamily: 'Tajawal, sans-serif' }}>
-              خصم 10% على أول طلب
+              خصومات حصرية على منتجاتنا سارع للطلب
             </h3>
-            <p className="text-white/80 mb-6">استخدمي كود WELCOME10 عند الدفع</p>
+            {coupon && (
+              <p className="text-white/80 mb-6">
+                {coupon.type === 'percentage'
+                  ? `استخدم كود ${coupon.code} للحصول على خصم ${coupon.discount}%`
+                  : `استخدم كود ${coupon.code} للحصول على خصم ${formatPrice(coupon.discount)}`
+                }
+              </p>
+            )}
             <Link
               to="/products"
               className="inline-flex items-center gap-2 bg-white text-[#8b1a2b] px-8 py-3 rounded-xl font-semibold hover:bg-stone-50 transition-colors"

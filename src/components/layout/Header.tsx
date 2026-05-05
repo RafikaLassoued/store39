@@ -1,14 +1,43 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingBag, Menu, X, Search, Heart, User } from 'lucide-react';
+import { ShoppingBag, Menu, X, Search, Heart } from 'lucide-react';
 import { useStore } from '../../hooks/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useFavorites } from '../../hooks/useFavorites';
+import { getActiveCoupon } from '../../lib/supabaseStore';
+import { formatPrice } from '../../lib/utils';
+import type { Coupon } from '../../types';
 
-export function Header() {
+interface HeaderProps {
+  adminPath: string;
+}
+
+export function Header({ adminPath }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const cartCount = useStore((s) => s.cartCount());
+  const favoriteCount = useFavorites((s) => s.favoriteIds.length);
   const location = useLocation();
+  const [activeCoupon, setActiveCoupon] = useState<Coupon | null>(null);
+
+  useEffect(() => {
+    const loadCoupon = async () => {
+      try {
+        const coupon = await getActiveCoupon();
+        setActiveCoupon(coupon);
+      } catch (error) {
+        console.error('Failed to load active coupon', error);
+      }
+    };
+
+    void loadCoupon();
+  }, []);
+
+  const couponText = activeCoupon
+    ? activeCoupon.type === 'percentage'
+      ? ` | استخدم كود ${activeCoupon.code} للحصول على خصم ${activeCoupon.discount}%`
+      : ` | استخدم كود ${activeCoupon.code} للحصول على خصم ${formatPrice(activeCoupon.discount)}`
+    : '';
 
   const navLinks = [
     { to: '/', label: 'الرئيسية' },
@@ -22,7 +51,7 @@ export function Header() {
     <>
       {/* Top Bar */}
       <div className="bg-[#8b1a2b] text-white text-xs py-2 text-center font-semibold tracking-wide">
-        🚚 توصيل مجاني للطلبات فوق 10,000 دج | استخدم كود WELCOME10 للحصول على خصم 10%
+        🚚 توصيل مجاني للطلبات فوق 10,000 دج{couponText}
       </div>
 
       {/* Main Header */}
@@ -39,11 +68,11 @@ export function Header() {
 
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 bg-gradient-to-bl from-[#8b1a2b] to-[#c9a84c] rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-lg">أ</span>
+              <div className="w-9 h-9 rounded-xl overflow-hidden bg-white shadow-sm flex items-center justify-center">
+                <img src="/logo.png" alt="متجر ملابس" className="w-full h-full object-cover" />
               </div>
               <span className="text-xl font-bold text-stone-900 hidden sm:block" style={{ fontFamily: 'Tajawal, sans-serif' }}>
-                أناقتي
+                متجر ملابس
               </span>
             </Link>
 
@@ -62,12 +91,6 @@ export function Header() {
                   {link.label}
                 </Link>
               ))}
-              <Link
-                to="/admin"
-                className="text-sm font-medium text-stone-400 hover:text-[#8b1a2b] transition-colors"
-              >
-                لوحة التحكم
-              </Link>
             </nav>
 
             {/* Actions */}
@@ -78,8 +101,13 @@ export function Header() {
               >
                 <Search size={20} />
               </button>
-              <button className="p-2 text-stone-600 hover:text-[#8b1a2b] transition-colors hidden sm:block">
+              <button className="p-2 text-stone-600 hover:text-[#8b1a2b] transition-colors hidden sm:block relative">
                 <Heart size={20} />
+                {favoriteCount > 0 && (
+                  <span className="absolute -top-0.5 -left-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {favoriteCount}
+                  </span>
+                )}
               </button>
               <Link
                 to="/cart"
@@ -142,7 +170,7 @@ export function Header() {
                   </Link>
                 ))}
                 <Link
-                  to="/admin"
+                  to={adminPath}
                   onClick={() => setMobileMenuOpen(false)}
                   className="block px-4 py-3 rounded-xl text-sm font-medium text-stone-400 hover:bg-stone-50"
                 >
